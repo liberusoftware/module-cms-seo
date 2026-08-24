@@ -1,84 +1,61 @@
-# Cms: Seo Core Module
+# CMS SEO
 
-> This package is the authoritative, provider-neutral implementation of Seo. It owns domain behavior and data; optional API, Filament, Livewire, React, Vue, and Nuxt packages translate its public contracts for their surfaces.
+## Repository
 
-[Software](https://liberusoftware.com) ·
-[Hosting](https://liberuhosting.com) ·
-[Services](https://liberuservices.com) ·
-[Liberu Group](https://liberugroup.com)
+Source, issues, and release history: https://github.com/liberusoftware/module-cms-seo
 
-![PHP](https://img.shields.io/badge/PHP-8.5-777BB4?logo=php&logoColor=white) ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
-[![Latest release](https://img.shields.io/github/v/release/liberusoftware/module-cms-seo?sort=semver)](https://github.com/liberusoftware/module-cms-seo/releases/latest) [![Tests](https://github.com/liberusoftware/module-cms-seo/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/liberusoftware/module-cms-seo/actions/workflows/tests.yml)
+Composer package: https://packagist.org/packages/liberusoftware/module-cms-seo
 
-## Features
+SEO for the server-rendered (standalone) site: a public `sitemap.xml` and
+`robots.txt`, plus `<head>` meta / OpenGraph / JSON-LD tags for content pages.
+Both the sitemap and the head tags are unauthenticated and unscoped — they
+mirror what the public web routes serve.
 
-- Fully compatible with **Laravel 13**, **PHP 8.5**, and **Pest 5**.
-- Built following the domain-driven design guidelines of the Liberu architecture.
-- Reusable, presenting a clean public contract and boundaries.
-- Adheres to the strict database, security, and authorization standards of Liberu.
+## Sitemap
 
-## Requirements
+`GET /sitemap.xml` aggregates URLs from every module that registers a
+`SitemapUrlProviderInterface` with the `SitemapRegistry`, so the sitemap tracks
+the installed modules without this package importing one. A headless-only
+deployment that ships no public-URL modules simply gets an empty urlset.
 
-- **PHP 8.5**
-- **Composer 2**
-- A supported database (e.g. MySQL, PostgreSQL, SQLite)
+A content module contributes its URLs like this:
 
-## Quick start
-
-To install this package via Composer, run:
-
-```bash
-composer require liberusoftware/module-cms-seo
+```php
+// in the module's registerModule(), guarded for headless safety
+if ($this->app->bound(SitemapRegistryInterface::class)) {
+    $this->app->make(SitemapRegistryInterface::class)
+        ->registerProvider($this->app->make(PageSitemapProvider::class));
+}
 ```
 
-## Documentation
+## robots.txt
 
-- [Liberu Main Documentation](https://github.com/liberusoftware/documentation)
-- [Architecture & Standards Index](https://github.com/liberusoftware/documentation/tree/main/architecture)
+`GET /robots.txt` renders the crawl groups from `config('cms-seo.robots.groups')`
+and appends the sitemap location. Customize via the published config.
 
-## Related Liberu Projects
+## Head tags
 
-| Project | Repository | Purpose |
-| --- | --- | --- |
-| **Boilerplate** | [liberusoftware/boilerplate-laravel](https://github.com/liberusoftware/boilerplate-laravel) | Shared Laravel application foundation and reference composition |
-| **CMS** | [liberu-cms/cms-laravel](https://github.com/liberu-cms/cms-laravel) | Structured content, publishing, media, multisite, and headless delivery |
-| **CRM** | [liberu-crm/crm-laravel](https://github.com/liberu-crm/crm-laravel) | Customer data, sales, marketing, service, and customer success |
-| **Billing** | [liberu-billing/billing-laravel](https://github.com/liberu-billing/billing-laravel) | Products, subscriptions, invoicing, payments, and provisioning |
-| **Accounting** | [liberu-accounting/accounting-laravel](https://github.com/liberu-accounting/accounting-laravel) | Ledgers, banking, tax, expenses, close, and financial reporting |
-| **Ecommerce** | [liberu-ecommerce/ecommerce-laravel](https://github.com/liberu-ecommerce/ecommerce-laravel) | Catalog, checkout, orders, fulfillment, returns, B2B, and omnichannel commerce |
-| **Control Panel** | [liberu-control-panel/control-panel-laravel](https://github.com/liberu-control-panel/control-panel-laravel) | Hosting, infrastructure, DNS, mail, databases, backups, and security operations |
-| **Automation** | [liberu-automation/automation-laravel](https://github.com/liberu-automation/automation-laravel) | Governed workflows, provider-neutral AI, approvals, and connectors |
+Add meta / OpenGraph / Twitter / JSON-LD tags to a server-rendered page by
+pushing the component into the layout's `head` stack:
 
-## Security
+```blade
+@push('head')
+    <x-cms-seo::meta
+        :title="$page->title"
+        :description="$page->excerpt"
+        :canonical="url('/'.$page->slug)"
+        type="article"
+        :publishedTime="$page->publishedAt()?->format(DATE_ATOM)"
+    />
+@endpush
+```
 
-Please do not report security vulnerabilities through public GitHub issues.
-Follow our [Security Policy](https://github.com/liberusoftware/documentation/blob/main/architecture/SECURITY.md) for private reporting and supported versions.
+The component takes scalar props only (it imports no content models), escapes
+all attribute values, and encodes the JSON-LD with `JSON_HEX_TAG` so
+author-supplied text cannot break out of the `<script>`.
 
-## License
+## Config
 
-This project is open-source software. You may use, modify, and distribute it
-under the terms described in [LICENSE.md](LICENSE.md).
-
-The linked license text is authoritative; this summary is not legal advice.
-
-## Feedback and contributing
-
-Feedback and contributions are welcome. You can help by reporting reproducible
-bugs, proposing focused enhancements, improving documentation or translations,
-and submitting tested code changes.
-
-Before contributing, please read [CONTRIBUTING.md](https://github.com/liberusoftware/documentation/blob/main/standards/CONTRIBUTING.md) and our
-[Code of Conduct](https://github.com/liberusoftware/documentation/blob/main/architecture/CODE_OF_CONDUCT.md). Search existing issues first, then use
-the appropriate issue template. Pull requests should explain the problem and
-approach, remain focused, include or update tests, pass the required workflows,
-and document user-visible or breaking changes.
-
-## Contributors
-
-Thank you to everyone who helps improve Liberu.
-
-<a href="https://github.com/liberusoftware/module-cms-seo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=liberusoftware/module-cms-seo" alt="Contributors to liberusoftware/module-cms-seo">
-</a>
-
-[View the full contributors graph](https://github.com/liberusoftware/module-cms-seo/graphs/contributors).
+Publish with `php artisan vendor:publish --tag=cms-seo-config`. Keys:
+`robots.groups` (crawl rules), `meta.site_name` (defaults to `app.name`),
+`meta.default_description`, `meta.twitter`.
